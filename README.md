@@ -417,3 +417,16 @@ const setActive = useDisStore(s => s.setActiveChannel);
 ```bash
 rm -rf discord-web/.next && npm run dev:web
 ```
+for testing
+install k6
+# Stage 1 — Baseline (~90s)
+k6 run --env VU_COUNT=100 --env TEST_DURATION_SECS=60 dis/load-tests/baseline.js
+
+# Stage 2 — Soak (~33min, detects memory leaks)
+k6 run --env VU_COUNT=200 --env SOAK_MINUTES=30 dis/load-tests/soak.js
+
+# Stage 3 — Spike (sudden burst, ~2.5min)
+k6 run --env MAX_VUS=500 dis/load-tests/spike.js
+
+# Stage 4 — Broadcast flood (all VUs one channel, ~3min)
+k6 run --env VU_COUNT=300 dis/load-tests/broadcast_flood.js

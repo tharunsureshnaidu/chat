@@ -46,12 +46,13 @@ export const options = {
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 export function setup() {
+  const RUN_ID   = Date.now();
   const channels = [];
   const users    = [];
   const channelCount = Math.ceil(VU_COUNT / USERS_PER_CHANNEL);
 
   for (let c = 0; c < channelCount; c++) {
-    const username = `soak_admin_c${c}`;
+    const username = `soak_admin_c${c}_${RUN_ID}`;
     const email    = `${username}@lt.invalid`;
     const reg = http.post(
       `${BASE_URL}/api/auth/register`,
@@ -62,7 +63,7 @@ export function setup() {
     const { token } = reg.json();
     const ch = http.post(
       `${BASE_URL}/api/channels`,
-      JSON.stringify({ name: `soak-ch-${c}`, is_public: true }),
+      JSON.stringify({ name: `soak-ch-${c}-${RUN_ID}`, is_public: true }),
       { headers: { ...JSON_HEADERS, Authorization: `Bearer ${token}` } },
     );
     if (ch.status !== 201) fail(`create channel: ${ch.body}`);
@@ -70,7 +71,7 @@ export function setup() {
   }
 
   for (let i = 0; i < VU_COUNT; i++) {
-    const username = `soak_vu_${i}`;
+    const username = `soak_vu_${i}_${RUN_ID}`;
     const email    = `${username}@lt.invalid`;
     const reg = http.post(
       `${BASE_URL}/api/auth/register`,

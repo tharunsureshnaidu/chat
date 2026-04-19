@@ -49,12 +49,13 @@ export const options = {
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 export function setup() {
+  const RUN_ID   = Date.now();
   const channels = [];
   const users    = [];
   const channelCount = Math.ceil(MAX_VUS / USERS_PER_CHANNEL);
 
   for (let c = 0; c < channelCount; c++) {
-    const username = `spike_admin_c${c}`;
+    const username = `spike_admin_c${c}_${RUN_ID}`;
     const reg = http.post(
       `${BASE_URL}/api/auth/register`,
       JSON.stringify({ username, email: `${username}@lt.invalid`, password: 'LoadTest!123' }),
@@ -64,7 +65,7 @@ export function setup() {
     const { token } = reg.json();
     const ch = http.post(
       `${BASE_URL}/api/channels`,
-      JSON.stringify({ name: `spike-ch-${c}`, is_public: true }),
+      JSON.stringify({ name: `spike-ch-${c}-${RUN_ID}`, is_public: true }),
       { headers: { ...JSON_HEADERS, Authorization: `Bearer ${token}` } },
     );
     if (ch.status !== 201) fail(`create channel: ${ch.body}`);
@@ -72,7 +73,7 @@ export function setup() {
   }
 
   for (let i = 0; i < MAX_VUS; i++) {
-    const username = `spike_vu_${i}`;
+    const username = `spike_vu_${i}_${RUN_ID}`;
     const reg = http.post(
       `${BASE_URL}/api/auth/register`,
       JSON.stringify({ username, email: `${username}@lt.invalid`, password: 'LoadTest!123' }),

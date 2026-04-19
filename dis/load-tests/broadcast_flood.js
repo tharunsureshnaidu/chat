@@ -49,7 +49,8 @@ const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 /** One shared channel for all VUs — maximum fan-out */
 export function setup() {
-  const adminUsername = `flood_admin_${Date.now()}`;
+  const RUN_ID        = Date.now();
+  const adminUsername = `flood_admin_${RUN_ID}`;
   const reg = http.post(
     `${BASE_URL}/api/auth/register`,
     JSON.stringify({ username: adminUsername, email: `${adminUsername}@lt.invalid`, password: 'LoadTest!123' }),
@@ -60,7 +61,7 @@ export function setup() {
 
   const ch = http.post(
     `${BASE_URL}/api/channels`,
-    JSON.stringify({ name: `flood-ch-${Date.now()}`, is_public: true }),
+    JSON.stringify({ name: `flood-ch-${RUN_ID}`, is_public: true }),
     { headers: { ...JSON_HEADERS, Authorization: `Bearer ${adminToken}` } },
   );
   if (ch.status !== 201) fail(`create channel: ${ch.body}`);
@@ -68,7 +69,7 @@ export function setup() {
 
   const users = [];
   for (let i = 0; i < VU_COUNT; i++) {
-    const username = `flood_vu_${i}`;
+    const username = `flood_vu_${i}_${RUN_ID}`;
     const reg2 = http.post(
       `${BASE_URL}/api/auth/register`,
       JSON.stringify({ username, email: `${username}@lt.invalid`, password: 'LoadTest!123' }),
