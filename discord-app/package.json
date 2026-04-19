@@ -1,0 +1,13 @@
+{
+  "name": "discord-app",
+  "private": true,
+  "workspaces": [
+    "shared/*",
+    "discord",
+    "discord-web"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=discord-web",
+    "dev:mobile": "npm run start --workspace=discord"
+  }
+}
