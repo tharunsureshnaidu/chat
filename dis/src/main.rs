@@ -8,6 +8,7 @@ mod middleware;
 mod models;
 mod notification;
 mod presence;
+mod retry;
 mod routes;
 mod services;
 mod ws;
@@ -51,9 +52,11 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env().expect("Missing required environment variables");
 
-    let pool = db::create_pool(&config)
-        .await
-        .expect("Failed to connect to the database");
+    let pool = retry::retry(
+        || db::create_pool(&config),
+        "Postgres",
+    )
+    .await;
 
     // Run any pending migrations automatically on startup.
     // For production you may prefer `sqlx migrate run` in your CI/CD pipeline.
@@ -63,10 +66,13 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Database connected and migrations applied");
 
-    let redis_pool = ws::redis_pubsub::create_pool(&config.redis_url, config.redis_pool_size)
-        .expect("Failed to create Redis connection pool");
+    let redis_pool = retry::retry(
+        || ws::redis_pubsub::create_and_verify_pool(&config.redis_url, config.redis_pool_size),
+        "Redis",
+    )
+    .await;
 
-    info!("Redis pool created (max={} connections)", config.redis_pool_size);
+    info!("Redis pool ready (max={} connections)", config.redis_pool_size);
 
     let ws_manager = WsManager::new();
 
@@ -76,13 +82,13 @@ async fn main() -> anyhow::Result<()> {
         ws_manager.clone(),
     ));
 
-    let kafka_producer = kafka::producer::KafkaProducer::new(
-        &config.kafka_brokers,
-        &config.kafka_topic,
+    let kafka_producer = retry::retry(
+        || kafka::producer::KafkaProducer::create(&config.kafka_brokers, &config.kafka_topic),
+        "Kafka",
     )
-    .expect("Failed to create Kafka producer");
+    .await;
 
-    info!("Kafka producer connected (brokers={})", config.kafka_brokers);
+    info!("Kafka producer ready (brokers={})", config.kafka_brokers);
 
     // Spawn Kafka persistence consumer — writes to DB then publishes to Redis.
     tokio::spawn(kafka::consumer::run_consumer(

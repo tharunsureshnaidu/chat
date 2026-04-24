@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use rdkafka::{
     config::ClientConfig,
-    producer::{FutureProducer, FutureRecord},
+    producer::{FutureProducer, FutureRecord, Producer},
 };
 use serde::{Deserialize, Serialize};
 use tracing::debug;
@@ -41,6 +41,26 @@ impl KafkaProducer {
             .create()?;
 
         Ok(Self { inner, topic: topic.to_string() })
+    }
+
+    /// Async constructor that verifies broker reachability before returning.
+    /// Used during startup so the retry helper can detect an unavailable broker.
+    pub async fn create(brokers: &str, topic: &str) -> anyhow::Result<Self> {
+        let producer = Self::new(brokers, topic)?;
+
+        // fetch_metadata is a blocking librdkafka call — run it off the async executor.
+        let probe = producer.inner.clone();
+        tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+            probe
+                .client()
+                .fetch_metadata(None, Duration::from_secs(5))
+                .map(|_| ())
+                .map_err(|e| anyhow::anyhow!("Kafka broker unreachable: {}", e))
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("Kafka metadata task panicked: {}", e))??;
+
+        Ok(producer)
     }
 
     /// Publish an envelope, partitioned by `channel_id` so all messages in the
