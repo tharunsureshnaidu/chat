@@ -83,7 +83,9 @@ services:
         condition: service_healthy
     restart: unless-stopped
   frontend:
-    build: ../discord-app/discord-web
+    build:
+      context: ..
+      dockerfile: discord-app/discord-web/Dockerfile
     container_name: dis-frontend
     ports:
       - "3001:3000"
