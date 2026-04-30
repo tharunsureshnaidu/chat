@@ -1,3 +1,9 @@
+/**
+ * ChatWindow — Message list using React Native FlatList (natively virtualised).
+ *
+ * Auto-scrolls to bottom on new messages. Shows "sending..." for pending
+ * optimistic messages. Each MessageRow is memoized.
+ */
 import { memo, useEffect, useRef } from 'react';
 import { View, Text, FlatList, StyleSheet, type ListRenderItem } from 'react-native';
 import { useDisStore } from '@dis/store';

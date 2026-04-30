@@ -58,75 +58,58 @@ pub async fn get_messages(
     // Clamp limit between 1 and 100, default 50
     let limit = query.limit.unwrap_or(50).clamp(1, 100);
 
-    let messages = if let Some(after_id) = query.after_id {
-        // Offline sync: fetch messages that arrived while the client was away.
-        sqlx::query_as::<_, MessageWithAuthor>(
+    let (cursor_clause, order, cursor_id) = match (&query.after_id, &query.before_id) {
+        (Some(id), _) => (
+            "AND m.created_at > (SELECT created_at FROM messages WHERE id = $2)",
+            "ASC",
+            Some(*id),
+        ),
+        (_, Some(id)) => (
+            "AND m.created_at < (SELECT created_at FROM messages WHERE id = $2)",
+            "DESC",
+            Some(*id),
+        ),
+        _ => ("", "DESC", None),
+    };
+
+    // When there is no cursor we shift the limit bind from $3 → $2.
+    let sql = if cursor_id.is_some() {
+        format!(
             r#"
-            SELECT m.id,
-                   m.channel_id,
-                   m.user_id,
-                   u.username,
-                   m.content,
-                   m.created_at
+            SELECT m.id, m.channel_id, m.user_id, u.username, m.content, m.created_at
             FROM   messages m
             JOIN   users    u ON u.id = m.user_id
-            WHERE  m.channel_id = $1
-              AND  m.created_at > (
-                     SELECT created_at FROM messages WHERE id = $2
-                   )
-            ORDER  BY m.created_at ASC
+            WHERE  m.channel_id = $1 {cursor_clause}
+            ORDER  BY m.created_at {order}
             LIMIT  $3
-            "#,
+            "#
         )
-        .bind(channel_id)
-        .bind(after_id)
-        .bind(limit)
-        .fetch_all(pool)
-        .await?
-    } else if let Some(before_id) = query.before_id {
-        sqlx::query_as::<_, MessageWithAuthor>(
-            r#"
-            SELECT m.id,
-                   m.channel_id,
-                   m.user_id,
-                   u.username,
-                   m.content,
-                   m.created_at
-            FROM   messages m
-            JOIN   users    u ON u.id = m.user_id
-            WHERE  m.channel_id = $1
-              AND  m.created_at < (
-                     SELECT created_at FROM messages WHERE id = $2
-                   )
-            ORDER  BY m.created_at DESC
-            LIMIT  $3
-            "#,
-        )
-        .bind(channel_id)
-        .bind(before_id)
-        .bind(limit)
-        .fetch_all(pool)
-        .await?
     } else {
-        sqlx::query_as::<_, MessageWithAuthor>(
+        format!(
             r#"
-            SELECT m.id,
-                   m.channel_id,
-                   m.user_id,
-                   u.username,
-                   m.content,
-                   m.created_at
+            SELECT m.id, m.channel_id, m.user_id, u.username, m.content, m.created_at
             FROM   messages m
             JOIN   users    u ON u.id = m.user_id
             WHERE  m.channel_id = $1
-            ORDER  BY m.created_at DESC
+            ORDER  BY m.created_at {order}
             LIMIT  $2
-            "#,
+            "#
         )
-        .bind(channel_id)
-        .bind(limit)
-        .fetch_all(pool)
-        .await?
+    };
+
+    let messages = if let Some(cid) = cursor_id {
+        sqlx::query_as::<_, MessageWithAuthor>(&sql)
+            .bind(channel_id)
+            .bind(cid)
+            .bind(limit)
+            .fetch_all(pool)
+            .await?
+    } else {
+        sqlx::query_as::<_, MessageWithAuthor>(&sql)
+            .bind(channel_id)
+            .bind(limit)
+            .fetch_all(pool)
+            .await?
     };
 
     Ok(messages)

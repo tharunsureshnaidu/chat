@@ -1,3 +1,11 @@
+/**
+ * ChannelList — Sidebar showing joined channels, DMs, user info, and logout.
+ *
+ * Performance: Each ChannelItem subscribes to its own Zustand slice (unread count
+ * + active state) so a new message in one channel doesn't re-render the entire list.
+ *
+ * Props: onDiscover, onCreateChannel (open modals from parent).
+ */
 'use client';
 
 import { memo } from 'react';

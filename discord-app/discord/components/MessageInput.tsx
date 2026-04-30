@@ -1,3 +1,9 @@
+/**
+ * MessageInput — Chat text input with 2000-char limit and send button.
+ *
+ * Uses KeyboardAvoidingView on iOS to stay above the keyboard.
+ * Shows a character counter when near the limit.
+ */
 import { memo, useState, useCallback } from 'react';
 import {
   View,

@@ -1,3 +1,9 @@
+/**
+ * ChannelList — Sidebar showing joined channels, WS status dot, and logout.
+ *
+ * Displays a green/yellow/gray dot for connected/reconnecting/disconnected.
+ * Handles logout by clearing SecureStore + Zustand and navigating to /login.
+ */
 import { memo } from 'react';
 import {
   View,

@@ -1,3 +1,9 @@
+/**
+ * CreateChannelModal — Form to create a new chat channel.
+ *
+ * Fields: name (required), description (optional), public/private toggle.
+ * On success, calls onCreated(channel) so the parent can add it to the store.
+ */
 'use client';
 
 import { useState } from 'react';

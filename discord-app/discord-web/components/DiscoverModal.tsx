@@ -1,3 +1,13 @@
+/**
+ * DiscoverModal — Multi-tab modal for social features.
+ *
+ * Tabs:
+ * 1. Channels — Browse/search public channels, join or request access
+ * 2. Requests — Incoming channel invites, friend requests, admin join-requests
+ * 3. Search  — Find users by username, send friend requests
+ *
+ * Clears the social notification badge on open.
+ */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';

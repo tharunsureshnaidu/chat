@@ -1,3 +1,10 @@
+/**
+ * ChatWindow — Virtualised message list using @tanstack/react-virtual.
+ *
+ * Only the messages currently visible in the viewport are rendered in the DOM.
+ * Auto-scrolls to the bottom when new messages arrive. Each MessageRow is
+ * memoized to prevent re-renders when unrelated messages change.
+ */
 'use client';
 
 import { memo, useEffect, useRef } from 'react';

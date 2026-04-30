@@ -17,6 +17,7 @@ use crate::{
         },
     },
     services::social_service,
+    services::social::discover::UserSearchResult,
     AppState,
 };
 
@@ -45,7 +46,7 @@ pub async fn search_users(
     State(state): State<AppState>,
     auth: AuthUser,
     Query(params): Query<SearchQuery>,
-) -> AppResult<Json<Vec<serde_json::Value>>> {
+) -> AppResult<Json<Vec<UserSearchResult>>> {
     let q = params.q.unwrap_or_default();
     if q.trim().is_empty() {
         return Ok(Json(vec![]));

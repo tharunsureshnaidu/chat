@@ -1,3 +1,12 @@
+/**
+ * MessageInput — Chat text input with send button.
+ *
+ * Features:
+ * - 2000-char limit with live counter when near the limit
+ * - Shows a "Join" button for non-members (uses onJoin prop)
+ * - Resolves placeholder to "#channel" or "@username" for DMs
+ * - Enter to send, Shift+Enter for newline
+ */
 'use client';
 
 import { memo, useState, type KeyboardEvent } from 'react';
