@@ -26,11 +26,13 @@ export interface DisStore {
   channels: ChannelSummary[];
   setChannels: (channels: ChannelSummary[]) => void;
   addChannel: (channel: ChannelSummary) => void;
+  removeChannel: (id: string) => void;
 
   // ── DMs ───────────────────────────────────────────────────────────────────
   dms: ChannelSummary[];
   setDMs: (dms: ChannelSummary[]) => void;
   addDM: (dm: ChannelSummary) => void;
+  removeDM: (id: string) => void;
 
   // ── Active channel ────────────────────────────────────────────────────────
   activeChannelId: string | null;
@@ -91,6 +93,19 @@ export const useDisStore = create<DisStore>()((set) => ({
         ? s.channels.map((c) => (c.id === channel.id ? channel : c))
         : [...s.channels, channel],
     })),
+  removeChannel: (id) =>
+    set((s) => {
+      const nextMessages = { ...s.messages };
+      delete nextMessages[id];
+      const nextUnread = { ...s.unread };
+      delete nextUnread[id];
+      return {
+        channels: s.channels.filter((c) => c.id !== id),
+        messages: nextMessages,
+        unread: nextUnread,
+        activeChannelId: s.activeChannelId === id ? null : s.activeChannelId,
+      };
+    }),
 
   // ── DMs ───────────────────────────────────────────────────────────────────
   dms: [],
@@ -99,6 +114,19 @@ export const useDisStore = create<DisStore>()((set) => ({
     set((s) => ({
       dms: s.dms.some((d) => d.id === dm.id) ? s.dms : [...s.dms, dm],
     })),
+  removeDM: (id) =>
+    set((s) => {
+      const nextMessages = { ...s.messages };
+      delete nextMessages[id];
+      const nextUnread = { ...s.unread };
+      delete nextUnread[id];
+      return {
+        dms: s.dms.filter((d) => d.id !== id),
+        messages: nextMessages,
+        unread: nextUnread,
+        activeChannelId: s.activeChannelId === id ? null : s.activeChannelId,
+      };
+    }),
 
   // ── Active channel ────────────────────────────────────────────────────────
   activeChannelId: null,

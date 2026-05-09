@@ -61,7 +61,7 @@ const MessageInput = memo(function MessageInput({ onSend, onJoin, joinPending }:
   if (activeChannel && !isMember) {
     return (
       <div className="px-4 pb-4 pt-1 shrink-0">
-        <div className="bg-gradient-to-r from-[#2b2d31] to-[#313338] border border-[#404249] rounded-2xl flex items-center justify-between px-5 py-3.5 gap-4">
+        <div className="bg-linear-to-r from-[#2b2d31] to-[#313338] border border-[#404249] rounded-2xl flex items-center justify-between px-5 py-3.5 gap-4">
           <div className="min-w-0">
             <p className="text-[#b5bac1] text-sm">
               <span className="text-white font-semibold">{channelLabel}</span>
@@ -77,7 +77,7 @@ const MessageInput = memo(function MessageInput({ onSend, onJoin, joinPending }:
           ) : (
             <button
               onClick={onJoin}
-              className="shrink-0 px-4 py-2 bg-gradient-to-r from-[#5865f2] to-[#7289da] text-white text-sm font-semibold rounded-xl hover:from-[#4752c4] hover:to-[#5865f2] transition-all duration-200 shadow-lg shadow-[#5865f2]/25"
+              className="shrink-0 px-4 py-2 bg-linear-to-r from-[#5865f2] to-[#7289da] text-white text-sm font-semibold rounded-xl hover:from-[#4752c4] hover:to-[#5865f2] transition-all duration-200 shadow-lg shadow-[#5865f2]/25"
             >
               {activeChannel.is_public ? '+ Join' : '↗ Request to Join'}
             </button>
