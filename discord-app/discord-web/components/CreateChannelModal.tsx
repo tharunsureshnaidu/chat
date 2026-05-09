@@ -47,7 +47,7 @@ export default function CreateChannelModal({ api, onClose, onCreated }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-[#2b2d31] rounded-2xl w-[460px] shadow-2xl border border-white/5 overflow-hidden">
         {/* Header */}
-        <div className="relative px-6 pt-5 pb-4 bg-gradient-to-r from-[#5865f2]/15 via-transparent to-transparent">
+        <div className="relative px-6 pt-5 pb-4 bg-linear-to-r from-[#5865f2]/15 via-transparent to-transparent">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-white font-bold text-xl tracking-tight">Create a Channel</h2>
@@ -152,7 +152,7 @@ export default function CreateChannelModal({ api, onClose, onCreated }: Props) {
             <button
               type="submit"
               disabled={loading || !name.trim()}
-              className="px-5 py-2 bg-gradient-to-r from-[#5865f2] to-[#7289da] text-white rounded-xl text-sm font-semibold hover:from-[#4752c4] hover:to-[#5865f2] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-[#5865f2]/25"
+              className="px-5 py-2 bg-linear-to-r from-[#5865f2] to-[#7289da] text-white rounded-xl text-sm font-semibold hover:from-[#4752c4] hover:to-[#5865f2] disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-[#5865f2]/25"
             >
               {loading ? 'Creating…' : 'Create Channel ✨'}
             </button>
