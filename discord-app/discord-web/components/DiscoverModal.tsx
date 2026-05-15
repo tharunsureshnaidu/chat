@@ -189,7 +189,7 @@ export default function DiscoverModal({ api, onClose, onChannelJoined }: Props) 
       <div className="bg-[#2b2d31] rounded-2xl w-[580px] max-h-[82vh] flex flex-col shadow-2xl border border-white/5 overflow-hidden">
 
         {/* Header with gradient */}
-        <div className="relative px-6 pt-5 pb-4 bg-gradient-to-r from-[#5865f2]/15 via-transparent to-[#7289da]/10">
+        <div className="relative px-6 pt-5 pb-4 bg-linear-to-r from-[#5865f2]/15 via-transparent to-[#7289da]/10">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-white font-bold text-xl tracking-tight">Discover</h2>
@@ -275,7 +275,7 @@ export default function DiscoverModal({ api, onClose, onChannelJoined }: Props) 
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm ${
-                          isMember ? 'bg-gradient-to-br from-[#5865f2] to-[#7289da] text-white' : 'bg-[#383a40] text-[#4e5058]'
+                          isMember ? 'bg-linear-to-br from-[#5865f2] to-[#7289da] text-white' : 'bg-[#383a40] text-[#4e5058]'
                         }`}>
                           {ch.is_public ? '#' : '🔒'}
                         </div>
@@ -306,7 +306,7 @@ export default function DiscoverModal({ api, onClose, onChannelJoined }: Props) 
                         <button
                           disabled={busy}
                           onClick={() => handleJoin(ch.id, isMember)}
-                          className="shrink-0 px-4 py-1.5 bg-gradient-to-r from-[#5865f2] to-[#7289da] text-white rounded-lg text-xs font-semibold hover:from-[#4752c4] hover:to-[#5865f2] disabled:opacity-50 transition-all duration-150 shadow-md shadow-[#5865f2]/20"
+                          className="shrink-0 px-4 py-1.5 bg-linear-to-r from-[#5865f2] to-[#7289da] text-white rounded-lg text-xs font-semibold hover:from-[#4752c4] hover:to-[#5865f2] disabled:opacity-50 transition-all duration-150 shadow-md shadow-[#5865f2]/20"
                         >
                           {busy ? '…' : ch.is_public ? '+ Join' : '↗ Request'}
                         </button>
@@ -345,7 +345,7 @@ export default function DiscoverModal({ api, onClose, onChannelJoined }: Props) 
                       </p>
                       {adminJoinRequests.map((jr) => (
                         <div key={jr.id} className="flex items-center gap-3 px-4 py-3 bg-[#313338] rounded-xl mb-1.5 border border-[#404249]/50">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#f0b132] to-[#e67e22] flex items-center justify-center text-sm font-bold text-white shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#f0b132] to-[#e67e22] flex items-center justify-center text-sm font-bold text-white shrink-0">
                             {jr.username[0]?.toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -381,7 +381,7 @@ export default function DiscoverModal({ api, onClose, onChannelJoined }: Props) 
                       </p>
                       {invites.map((inv) => (
                         <div key={inv.id} className="flex items-center gap-3 px-4 py-3 bg-[#313338] rounded-xl mb-1.5 border border-[#5865f2]/20">
-                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#5865f2] to-[#7289da] flex items-center justify-center text-sm font-bold text-white shrink-0">
+                          <div className="w-9 h-9 rounded-xl bg-linear-to-br from-[#5865f2] to-[#7289da] flex items-center justify-center text-sm font-bold text-white shrink-0">
                             #
                           </div>
                           <div className="flex-1 min-w-0">
@@ -417,7 +417,7 @@ export default function DiscoverModal({ api, onClose, onChannelJoined }: Props) 
                       </p>
                       {friendRequests.map((fr) => (
                         <div key={fr.id} className="flex items-center gap-3 px-4 py-3 bg-[#313338] rounded-xl mb-1.5 border border-[#23a559]/20">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#23a559] to-[#1e8c4a] flex items-center justify-center text-sm font-bold text-white shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#23a559] to-[#1e8c4a] flex items-center justify-center text-sm font-bold text-white shrink-0">
                             {fr.sender_username?.[0]?.toUpperCase() ?? '?'}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -484,7 +484,7 @@ export default function DiscoverModal({ api, onClose, onChannelJoined }: Props) 
                       key={u.id}
                       className="flex items-center gap-3 px-4 py-3 bg-[#313338] hover:bg-[#383a40] rounded-xl border border-transparent hover:border-[#404249] transition-all duration-150"
                     >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#5865f2] to-[#7289da] flex items-center justify-center text-sm font-bold text-white shrink-0 shadow-md">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-[#5865f2] to-[#7289da] flex items-center justify-center text-sm font-bold text-white shrink-0 shadow-md">
                         {u.username[0]?.toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -503,7 +503,7 @@ export default function DiscoverModal({ api, onClose, onChannelJoined }: Props) 
                         <button
                           disabled={busy}
                           onClick={() => handleSendFriendRequest(u.id, u.username)}
-                          className="shrink-0 px-4 py-1.5 bg-gradient-to-r from-[#5865f2] to-[#7289da] text-white rounded-lg text-xs font-semibold hover:from-[#4752c4] hover:to-[#5865f2] disabled:opacity-50 transition-all shadow-md shadow-[#5865f2]/20"
+                          className="shrink-0 px-4 py-1.5 bg-linear-to-r from-[#5865f2] to-[#7289da] text-white rounded-lg text-xs font-semibold hover:from-[#4752c4] hover:to-[#5865f2] disabled:opacity-50 transition-all shadow-md shadow-[#5865f2]/20"
                         >
                           {busy ? '…' : '+ Add'}
                         </button>

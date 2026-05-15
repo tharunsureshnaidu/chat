@@ -1,16 +1,21 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiClient } from '@dis/api';
 import { WsClient } from '@dis/ws';
 import { useDisStore } from '@dis/store';
 import type { ServerMessage, ChannelSummary } from '@dis/types';
 import ChannelList from '@/components/ChannelList';
+import ChannelHeader from '@/components/ChannelHeader';
 import ChatWindow from '@/components/ChatWindow';
 import MessageInput from '@/components/MessageInput';
+import MembersPanel from '@/components/MembersPanel';
 import DiscoverModal from '@/components/DiscoverModal';
 import CreateChannelModal from '@/components/CreateChannelModal';
+import ChannelSettingsModal from '@/components/ChannelSettingsModal';
+import { ToastHost } from '@/components/ui/ToastHost';
+import { toast } from '@/lib/toast';
 
 const api = new ApiClient(
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'
@@ -23,6 +28,9 @@ export default function ChatPage() {
 
   const [showDiscover, setShowDiscover] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showMembers, setShowMembers] = useState(true);
+  const [showSidebarMobile, setShowSidebarMobile] = useState(false);
   // Tracks channels where the user has a pending join request
   const [pendingJoinChannels, setPendingJoinChannels] = useState<Set<string>>(new Set());
 
@@ -31,8 +39,10 @@ export default function ChatPage() {
   const setAuth = useDisStore((s) => s.setAuth);
   const setChannels = useDisStore((s) => s.setChannels);
   const addChannel = useDisStore((s) => s.addChannel);
+  const removeChannel = useDisStore((s) => s.removeChannel);
   const setDMs = useDisStore((s) => s.setDMs);
   const addDM = useDisStore((s) => s.addDM);
+  const removeDM = useDisStore((s) => s.removeDM);
   const addMessage = useDisStore((s) => s.addMessage);
   const setWsStatus = useDisStore((s) => s.setWsStatus);
   const activeChannelId = useDisStore((s) => s.activeChannelId);
@@ -46,6 +56,21 @@ export default function ChatPage() {
   const addInvite = useDisStore((s) => s.addInvite);
   const incrementSocialBadge = useDisStore((s) => s.incrementSocialBadge);
   const markUnread = useDisStore((s) => s.markUnread);
+
+  const channels = useDisStore((s) => s.channels);
+  const dms = useDisStore((s) => s.dms);
+
+  const activeChannel = useMemo(
+    () =>
+      activeChannelId
+        ? channels.find((c) => c.id === activeChannelId) ??
+          dms.find((c) => c.id === activeChannelId)
+        : undefined,
+    [activeChannelId, channels, dms]
+  );
+
+  const isActiveMember =
+    !!activeChannel?.my_role || !!activeChannel?.is_direct;
 
   // ── 1. Restore auth from localStorage ─────────────────────────────────────
   useEffect(() => {
@@ -71,34 +96,31 @@ export default function ChatPage() {
   // ── 2. Load channels, DMs, friends, invites once auth is ready ─────────────
   useEffect(() => {
     if (!token) return;
-    // Always sync the token to the api singleton before fetching (guards
-    // against StrictMode double-invoke and store-rehydration races).
     api.setToken(token);
-    // discoverChannels returns ALL public channels with my_role set if joined.
-    // We also fetch private joined channels that won't appear in discover.
     Promise.all([api.discoverChannels(), api.fetchMyChannels()])
       .then(([publicChs, myChs]) => {
-        const merged = new Map<string, import('@dis/types').ChannelSummary>();
+        const merged = new Map<string, ChannelSummary>();
         for (const ch of publicChs) merged.set(ch.id, ch);
         for (const ch of myChs) {
           if (!merged.has(ch.id)) merged.set(ch.id, ch);
         }
         const all = Array.from(merged.values());
         setChannels(all);
-        // Subscribe to all joined channels for background unread tracking
         for (const ch of all) {
           if (ch.my_role) wsRef.current?.subscribe(ch.id);
         }
       })
-      .catch(console.error);
-    api.fetchMyDMs().then((dms) => {
-      setDMs(dms);
-      // Subscribe to all DMs for background unread tracking
-      for (const dm of dms) wsRef.current?.subscribe(dm.id);
-    }).catch(console.error);
-    api.fetchFriends().then(setFriends).catch(console.error);
-    api.fetchFriendRequests().then(setPendingFriendRequests).catch(console.error);
-    api.fetchMyInvites().then(setPendingInvites).catch(console.error);
+      .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+    api
+      .fetchMyDMs()
+      .then((d) => {
+        setDMs(d);
+        for (const dm of d) wsRef.current?.subscribe(dm.id);
+      })
+      .catch((e) => toast.error(e instanceof Error ? e.message : String(e)));
+    api.fetchFriends().then(setFriends).catch(() => undefined);
+    api.fetchFriendRequests().then(setPendingFriendRequests).catch(() => undefined);
+    api.fetchMyInvites().then(setPendingInvites).catch(() => undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -120,7 +142,6 @@ export default function ChatPage() {
               content: msg.content,
               created_at: msg.timestamp,
             });
-            // Mark unread if this message is not in the currently active channel
             if (msg.channel_id !== useDisStore.getState().activeChannelId) {
               markUnread(msg.channel_id);
             }
@@ -137,6 +158,7 @@ export default function ChatPage() {
               created_at: new Date().toISOString(),
             });
             incrementSocialBadge();
+            toast.info(`${msg.inviter_username} invited you to #${msg.channel_name}`);
             break;
 
           case 'friend_request_received':
@@ -150,19 +172,24 @@ export default function ChatPage() {
               created_at: new Date().toISOString(),
             });
             incrementSocialBadge();
+            toast.info(`${msg.sender_username} sent you a friend request`);
             break;
 
           case 'join_request_approved':
-            // Only need the joined-channels list (my_role is now set);
-            // no need to re-fetch all public discover channels.
-            api.fetchMyChannels()
+            api
+              .fetchMyChannels()
               .then((myChs) => {
                 for (const ch of myChs) {
                   addChannel(ch);
                   wsRef.current?.subscribe(ch.id);
                 }
               })
-              .catch(console.error);
+              .catch(() => undefined);
+            toast.success('Your join request was approved');
+            break;
+
+          case 'join_request_rejected':
+            toast.info('A join request was declined');
             break;
 
           case 'friend_request_accepted':
@@ -174,11 +201,19 @@ export default function ChatPage() {
             });
             if (msg.dm_channel_id) {
               wsRef.current?.subscribe(msg.dm_channel_id);
-              api.fetchMyDMs().then((dms) => {
-                setDMs(dms);
-                for (const dm of dms) wsRef.current?.subscribe(dm.id);
-              }).catch(console.error);
+              api
+                .fetchMyDMs()
+                .then((d) => {
+                  setDMs(d);
+                  for (const dm of d) wsRef.current?.subscribe(dm.id);
+                })
+                .catch(() => undefined);
             }
+            toast.success(`You're now friends with ${msg.friend_username}`);
+            break;
+
+          case 'error':
+            toast.error(msg.message);
             break;
         }
       },
@@ -188,8 +223,6 @@ export default function ChatPage() {
     ws.connect();
     wsRef.current = ws;
 
-    // Auto-subscribe to all already-loaded joined channels + DMs so background
-    // messages trigger unread badges even for channels never explicitly opened.
     const { channels: loadedChannels, dms: loadedDMs } = useDisStore.getState();
     for (const ch of loadedChannels) {
       if (ch.my_role) ws.subscribe(ch.id);
@@ -209,13 +242,9 @@ export default function ChatPage() {
   useEffect(() => {
     if (!activeChannelId) return;
 
-    // clearUnread is a stable Zustand action — access via getState() to keep
-    // the deps array size constant (avoids React's "changed size" error).
     useDisStore.getState().clearUnread(activeChannelId);
     wsRef.current?.subscribe(activeChannelId);
 
-    // Don't attempt to fetch messages for private channels we're not a member
-    // of — the backend will 401 and there's nothing to show anyway.
     const { channels, dms } = useDisStore.getState();
     const ch =
       channels.find((c) => c.id === activeChannelId) ??
@@ -226,30 +255,24 @@ export default function ChatPage() {
       api
         .fetchMessages(activeChannelId)
         .then((msgs) => setMessages(activeChannelId, msgs))
-        .catch(console.error);
+        .catch((e) =>
+          toast.error(e instanceof Error ? e.message : 'Failed to load messages')
+        );
     }
 
     return () => {
-      // Only unsubscribe for public channels the user is browsing WITHOUT
-      // being a member (e.g. previewing before joining).
-      // Members MUST stay subscribed so the server keeps broadcasting new
-      // messages to them for background unread-badge tracking — navigating
-      // to another channel must NOT cut off delivery for channels they belong to.
+      // Members must remain subscribed for background unread tracking;
+      // only unsubscribe channels we are merely previewing.
       if (!isMember) {
         wsRef.current?.unsubscribe(activeChannelId);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChannelId, setMessages]);
 
   // ── 5. Send message (optimistic update) ───────────────────────────────────
   const handleSend = useCallback(
     (content: string) => {
       if (!activeChannelId || !wsRef.current || !user) return;
-      // Add a pending message immediately so the UI responds without waiting
-      // for the Kafka → DB → Redis → WS round-trip (~100–300 ms).
-      // addMessage detects the pending flag and auto-confirms it when the
-      // echoed server message arrives (same user_id + content match).
       addMessage(activeChannelId, {
         id: crypto.randomUUID(),
         channel_id: activeChannelId,
@@ -266,11 +289,8 @@ export default function ChatPage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   function handleChannelJoined(channel: ChannelSummary) {
-    if (channel.is_direct) {
-      addDM(channel);
-    } else {
-      addChannel(channel);
-    }
+    if (channel.is_direct) addDM(channel);
+    else addChannel(channel);
     wsRef.current?.subscribe(channel.id);
     setActiveChannel(channel.id);
     setShowDiscover(false);
@@ -282,21 +302,36 @@ export default function ChatPage() {
     setActiveChannel(channel.id);
   }
 
+  function handleChannelUpdated(channel: ChannelSummary) {
+    addChannel(channel);
+  }
+
+  function handleChannelLeftOrDeleted(id: string) {
+    const wasDM = useDisStore.getState().dms.some((d) => d.id === id);
+    if (wasDM) removeDM(id);
+    else removeChannel(id);
+    wsRef.current?.unsubscribe(id);
+  }
+
   async function handleJoinActive() {
     if (!activeChannelId) return;
     try {
       await api.joinChannel(activeChannelId);
-      // Refresh to get updated my_role (public channel = now a member)
       const updated = await api.discoverChannels();
       const joined = updated.find((c) => c.id === activeChannelId);
-      if (joined) addChannel(joined);
-    } catch (e: unknown) {
+      if (joined?.my_role) {
+        addChannel(joined);
+        toast.success(`Joined #${joined.name}`);
+      } else if (joined) {
+        addChannel(joined);
+      }
+    } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // "already pending" is a success state for private channels
-      if (msg.includes('already pending') || msg.includes('pending')) {
+      if (msg.toLowerCase().includes('pending')) {
         setPendingJoinChannels((prev) => new Set(prev).add(activeChannelId));
+        toast.info('Join request sent');
       } else {
-        console.error('Join failed:', e);
+        toast.error(msg);
       }
     }
   }
@@ -304,40 +339,62 @@ export default function ChatPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-screen bg-[#313338] text-white overflow-hidden">
-      <ChannelList
-        onDiscover={() => setShowDiscover(true)}
-        onCreateChannel={() => setShowCreateChannel(true)}
-      />
+      {/* Sidebar — always visible on md+, slides in on mobile */}
+      <div
+        className={`${
+          showSidebarMobile ? 'flex' : 'hidden'
+        } md:flex shrink-0 absolute md:relative inset-y-0 left-0 z-30`}
+      >
+        <ChannelList
+          onDiscover={() => setShowDiscover(true)}
+          onCreateChannel={() => setShowCreateChannel(true)}
+          onPickChannel={() => setShowSidebarMobile(false)}
+        />
+      </div>
+      {showSidebarMobile && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-20"
+          onClick={() => setShowSidebarMobile(false)}
+        />
+      )}
 
       <main className="flex flex-col flex-1 min-w-0">
-        {activeChannelId ? (
+        {activeChannelId && activeChannel ? (
           <>
-            <ChatWindow channelId={activeChannelId} />
-            <MessageInput
-              onSend={handleSend}
-              onJoin={handleJoinActive}
-              joinPending={!!activeChannelId && pendingJoinChannels.has(activeChannelId)}
+            <ChannelHeader
+              showMembers={showMembers}
+              onToggleMembers={() => setShowMembers((v) => !v)}
+              onOpenSettings={() => setShowSettings(true)}
+              onToggleSidebar={() => setShowSidebarMobile((v) => !v)}
             />
+            <div className="flex flex-1 min-h-0">
+              <div className="flex flex-col flex-1 min-w-0">
+                <ChatWindow
+                  channelId={activeChannelId}
+                  api={api}
+                  isMember={isActiveMember}
+                />
+                <MessageInput
+                  onSend={handleSend}
+                  onJoin={handleJoinActive}
+                  joinPending={pendingJoinChannels.has(activeChannelId)}
+                />
+              </div>
+              {!activeChannel.is_direct && (
+                <MembersPanel
+                  channelId={activeChannelId}
+                  api={api}
+                  visible={showMembers && isActiveMember}
+                />
+              )}
+            </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[#949ba4]">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="opacity-30"
-            >
-              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
-            </svg>
-            <p className="text-sm">Select a channel to start chatting</p>
-            <button
-              onClick={() => setShowDiscover(true)}
-              className="mt-1 px-4 py-2 bg-[#5865f2] text-white rounded text-sm font-medium hover:bg-[#4752c4] transition"
-            >
-              Discover channels
-            </button>
-          </div>
+          <EmptyState
+            onDiscover={() => setShowDiscover(true)}
+            onCreate={() => setShowCreateChannel(true)}
+            onToggleSidebar={() => setShowSidebarMobile(true)}
+          />
         )}
       </main>
 
@@ -356,6 +413,66 @@ export default function ChatPage() {
           onCreated={handleChannelCreated}
         />
       )}
+
+      {showSettings && activeChannel && (
+        <ChannelSettingsModal
+          api={api}
+          channel={activeChannel}
+          onClose={() => setShowSettings(false)}
+          onChannelUpdated={handleChannelUpdated}
+          onLeftOrDeleted={handleChannelLeftOrDeleted}
+        />
+      )}
+
+      <ToastHost />
+    </div>
+  );
+}
+
+function EmptyState({
+  onDiscover,
+  onCreate,
+  onToggleSidebar,
+}: {
+  onDiscover: () => void;
+  onCreate: () => void;
+  onToggleSidebar: () => void;
+}) {
+  return (
+    <div className="flex-1 flex flex-col">
+      <header className="md:hidden h-12 px-4 flex items-center bg-[#313338] border-b border-black/30">
+        <button onClick={onToggleSidebar} className="text-[#b5bac1] hover:text-white">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z" />
+          </svg>
+        </button>
+      </header>
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 text-[#949ba4] px-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-linear-to-br from-[#5865f2] to-[#7289da] flex items-center justify-center shadow-lg shadow-[#5865f2]/30">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-white">Welcome to Dis</h2>
+        <p className="text-sm max-w-sm">
+          Pick a channel from the sidebar to start chatting, or browse public
+          channels to discover something new.
+        </p>
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={onDiscover}
+            className="px-4 py-2 bg-[#5865f2] text-white rounded-lg text-sm font-semibold hover:bg-[#4752c4] transition"
+          >
+            Discover channels
+          </button>
+          <button
+            onClick={onCreate}
+            className="px-4 py-2 bg-[#383a40] text-white rounded-lg text-sm font-semibold hover:bg-[#404249] transition"
+          >
+            Create one
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
